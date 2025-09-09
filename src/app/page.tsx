@@ -1,6 +1,7 @@
 import Banner from "@/components/Banner";
 import Category from "@/components/Category";
 import Header from "@/components/Header";
+import Products from "@/components/Products";
 import Image from "next/image";
 
 export default function Home() {
@@ -9,6 +10,7 @@ export default function Home() {
       <Header />
       <Banner />
       <Category />
+      <Products />
     </div>
   );
 }
