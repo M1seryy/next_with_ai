@@ -1,69 +1,109 @@
 "use client";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import ProductCard from "../ProductCard";
 import { Sneaker } from "@/types";
-import rawData from "@/app/data";
 
 const Products: React.FC = () => {
-  const [products, setProducts] = useState<Sneaker[]>(
-    Object.values(rawData as Record<string, Sneaker>)
-  );
+  const [products, setProducts] = useState<Sneaker[]>([]);
+  const [totalItems, setTotalItems] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
 
-  const brands = useMemo(() => {
-    return [...Array.from(new Set(products.map((p) => p.brand))).sort()];
-  }, [products]);
+  const [allBrands, setAllBrands] = useState<string[]>([]);
+  const [allCategories, setAllCategories] = useState<string[]>([]);
+  const [allSizes, setAllSizes] = useState<string[]>([]);
 
-  const categories = useMemo(() => {
-    return [...Array.from(new Set(products.map((p) => p.category))).sort()];
-  }, [products]);
+  const brands = useMemo(() => allBrands, [allBrands]);
 
-  const sizes = useMemo(() => {
-    const collected = new Set<string>();
-    products.forEach((p) => p.sizes?.forEach((s) => collected.add(s)));
-    if (collected.size === 0) {
-      return ["6", "7", "8", "9", "10", "11", "12"];
-    }
-    return [...Array.from(collected).sort()];
-  }, [products]);
+  const categories = useMemo(() => allCategories, [allCategories]);
 
-  const filteredProducts = useMemo(() => {
-    const brandSet = new Set(selectedBrands.map((b) => b.trim().toLowerCase()));
-    const catSet = new Set(
-      selectedCategories.map((c) => c.trim().toLowerCase())
-    );
-    return products.filter((p) => {
-      const pBrand = p.brand.trim().toLowerCase();
-      const pCat = p.category.trim().toLowerCase();
-
-      const matchesBrand = brandSet.size === 0 || brandSet.has(pBrand);
-      const matchesCategory = catSet.size === 0 || catSet.has(pCat);
-      const matchesSize =
-        selectedSizes.length === 0 ||
-        (Array.isArray(p.sizes) &&
-          p.sizes.some((s) => selectedSizes.includes(s)));
-      return matchesBrand && matchesCategory && matchesSize;
-    });
-  }, [products, selectedBrands, selectedCategories, selectedSizes]);
+  const sizes = useMemo(() => allSizes, [allSizes]);
 
   // Pagination
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(12);
+
+  // Fetch products from backend with filters + pagination
+  useEffect(() => {
+    const controller = new AbortController();
+    async function run() {
+      setIsLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (selectedBrands.length)
+          params.set("brands", selectedBrands.join(","));
+        if (selectedCategories.length)
+          params.set("categories", selectedCategories.join(","));
+        if (selectedSizes.length) params.set("sizes", selectedSizes.join(","));
+        params.set("page", String(page));
+        params.set("pageSize", String(pageSize));
+
+        const res = await fetch(`/api/products?${params.toString()}`, {
+          signal: controller.signal,
+        });
+        const json = await res.json();
+        setProducts(json.items || []);
+        setTotalItems(json.total || 0);
+      } catch (e) {
+        if (!(e instanceof DOMException && e.name === "AbortError")) {
+          console.error(e);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    run();
+    return () => controller.abort();
+  }, [selectedBrands, selectedCategories, selectedSizes, page, pageSize]);
+
+  // Initial fetch to build filter options (brands/categories/sizes)
+  useEffect(() => {
+    const controller = new AbortController();
+    async function run() {
+      try {
+        const res = await fetch(`/api/products?page=1&pageSize=500`, {
+          signal: controller.signal,
+        });
+        const json = await res.json();
+        console.log(json);
+        const items: Sneaker[] = json.items || [];
+        const brandSet = new Set<string>();
+        const catSet = new Set<string>();
+        const sizeSet = new Set<string>();
+        items.forEach((p) => {
+          brandSet.add(p.brand);
+          catSet.add(p.category);
+          p.sizes?.forEach((s) => sizeSet.add(s));
+        });
+        setAllBrands(Array.from(brandSet).sort());
+        setAllCategories(Array.from(catSet).sort());
+        const computedSizes = sizeSet.size
+          ? Array.from(sizeSet).sort()
+          : ["6", "7", "8", "9", "10", "11", "12"];
+        setAllSizes(computedSizes);
+      } catch (e) {
+        if (!(e instanceof DOMException && e.name === "AbortError")) {
+          console.error(e);
+        }
+      }
+    }
+    run();
+    return () => controller.abort();
+  }, []);
 
   // Reset page when filters change
   React.useEffect(() => {
     setPage(1);
   }, [selectedBrands, selectedCategories, selectedSizes]);
 
-  const totalItems = filteredProducts.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const currentPage = Math.min(page, totalPages);
   const start = (currentPage - 1) * pageSize;
   const end = start + pageSize;
-  const paginated = filteredProducts.slice(start, end);
+  const paginated = products; // API already returns the correct slice
 
   return (
     <div className="mt-8 lg:flex lg:items-start lg:gap-8">
@@ -182,9 +222,14 @@ const Products: React.FC = () => {
 
       <main className="flex-1">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {paginated.map((p) => (
-            <ProductCard key={p.id} product={p} />
-          ))}
+          {isLoading && products.length === 0
+            ? Array.from({ length: 8 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-72 rounded-2xl bg-gray-100 animate-pulse"
+                />
+              ))
+            : paginated.map((p) => <ProductCard key={p.id} product={p} />)}
         </div>
         <div className="mt-10 mb-12 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-xs sm:text-sm text-gray-500">

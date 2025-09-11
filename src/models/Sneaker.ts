@@ -18,7 +18,10 @@ const SneakerSchema = new Schema(
         imageURL: { type: String, required: true },
         slug: { type: String, required: true, index: true },
     },
-    { timestamps: true }
+    {
+        timestamps: true,
+        collection: process.env.SNEAKERS_COLLECTION || "sneakers",
+    }
 );
 
 const Sneaker = models.Sneaker || model("Sneaker", SneakerSchema);
