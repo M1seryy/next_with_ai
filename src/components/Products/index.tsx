@@ -9,41 +9,45 @@ const Products: React.FC = () => {
     Object.values(rawData as Record<string, Sneaker>)
   );
 
-  const [selectedBrand, setSelectedBrand] = useState<string>("All");
-  const [selectedCategory, setSelectedCategory] = useState<string>("All");
-  const [selectedSize, setSelectedSize] = useState<string>("All");
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
 
   const brands = useMemo(() => {
-    return ["All", ...Array.from(new Set(products.map((p) => p.brand))).sort()];
+    return [...Array.from(new Set(products.map((p) => p.brand))).sort()];
   }, [products]);
 
   const categories = useMemo(() => {
-    return [
-      "All",
-      ...Array.from(new Set(products.map((p) => p.category))).sort(),
-    ];
+    return [...Array.from(new Set(products.map((p) => p.category))).sort()];
   }, [products]);
 
   const sizes = useMemo(() => {
     const collected = new Set<string>();
     products.forEach((p) => p.sizes?.forEach((s) => collected.add(s)));
     if (collected.size === 0) {
-      return ["All", "6", "7", "8", "9", "10", "11", "12"];
+      return ["6", "7", "8", "9", "10", "11", "12"];
     }
-    return ["All", ...Array.from(collected).sort()];
+    return [...Array.from(collected).sort()];
   }, [products]);
 
   const filteredProducts = useMemo(() => {
+    const brandSet = new Set(selectedBrands.map((b) => b.trim().toLowerCase()));
+    const catSet = new Set(
+      selectedCategories.map((c) => c.trim().toLowerCase())
+    );
     return products.filter((p) => {
-      const matchesBrand = selectedBrand === "All" || p.brand === selectedBrand;
-      const matchesCategory =
-        selectedCategory === "All" || p.category === selectedCategory;
+      const pBrand = p.brand.trim().toLowerCase();
+      const pCat = p.category.trim().toLowerCase();
+
+      const matchesBrand = brandSet.size === 0 || brandSet.has(pBrand);
+      const matchesCategory = catSet.size === 0 || catSet.has(pCat);
       const matchesSize =
-        selectedSize === "All" ||
-        (p.sizes ? p.sizes.includes(selectedSize) : true);
+        selectedSizes.length === 0 ||
+        (Array.isArray(p.sizes) &&
+          p.sizes.some((s) => selectedSizes.includes(s)));
       return matchesBrand && matchesCategory && matchesSize;
     });
-  }, [products, selectedBrand, selectedCategory, selectedSize]);
+  }, [products, selectedBrands, selectedCategories, selectedSizes]);
 
   // Pagination
   const [page, setPage] = useState<number>(1);
@@ -52,7 +56,7 @@ const Products: React.FC = () => {
   // Reset page when filters change
   React.useEffect(() => {
     setPage(1);
-  }, [selectedBrand, selectedCategory, selectedSize]);
+  }, [selectedBrands, selectedCategories, selectedSizes]);
 
   const totalItems = filteredProducts.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
@@ -64,50 +68,114 @@ const Products: React.FC = () => {
   return (
     <div className="mt-8 lg:flex lg:items-start lg:gap-8">
       <aside className="mb-6 lg:mb-0 lg:w-64 lg:shrink-0">
-        <div className="sticky top-4 border rounded-lg p-4 bg-white">
-          <div className="space-y-4">
+        <div className="sticky top-4 border border-gray-100 rounded-2xl p-5 bg-white shadow-md ">
+          <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium mb-1">Brand</label>
-              <select
-                className="w-full border rounded px-3 py-2"
-                value={selectedBrand}
-                onChange={(e) => setSelectedBrand(e.target.value)}
-              >
-                {brands.map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
-                ))}
-              </select>
+              <div className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+                Brand
+              </div>
+              <div className="flex flex-col gap-2 max-h-56 overflow-auto pr-1">
+                {brands.map((b) => {
+                  const checked = selectedBrands.includes(b);
+                  return (
+                    <label
+                      key={b}
+                      className="inline-flex items-center gap-2 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        checked={checked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedBrands((prev) => [...prev, b]);
+                          } else {
+                            setSelectedBrands((prev) =>
+                              prev.filter((x) => x !== b)
+                            );
+                          }
+                        }}
+                      />
+                      {b}
+                    </label>
+                  );
+                })}
+              </div>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Category</label>
-              <select
-                className="w-full border rounded px-3 py-2"
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-              >
-                {categories.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
+              <div className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+                Category
+              </div>
+              <div className="flex flex-col gap-2">
+                {categories.map((c) => {
+                  const checked = selectedCategories.includes(c);
+                  return (
+                    <label
+                      key={c}
+                      className="inline-flex items-center gap-2 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        checked={checked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedCategories((prev) => [...prev, c]);
+                          } else {
+                            setSelectedCategories((prev) =>
+                              prev.filter((x) => x !== c)
+                            );
+                          }
+                        }}
+                      />
+                      {c}
+                    </label>
+                  );
+                })}
+              </div>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Size</label>
-              <select
-                className="w-full border rounded px-3 py-2"
-                value={selectedSize}
-                onChange={(e) => setSelectedSize(e.target.value)}
-              >
-                {sizes.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+              <div className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+                Sizes
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {sizes.map((s) => {
+                  const checked = selectedSizes.includes(s);
+                  return (
+                    <label
+                      key={s}
+                      className="inline-flex items-center gap-2 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        checked={checked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedSizes((prev) => [...prev, s]);
+                          } else {
+                            setSelectedSizes((prev) =>
+                              prev.filter((x) => x !== s)
+                            );
+                          }
+                        }}
+                      />
+                      {s}
+                    </label>
+                  );
+                })}
+              </div>
             </div>
+            <button
+              className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 shadow-sm"
+              onClick={() => {
+                setSelectedBrands([]);
+                setSelectedCategories([]);
+                setSelectedSizes([]);
+              }}
+            >
+              Reset filters
+            </button>
           </div>
         </div>
       </aside>
@@ -118,51 +186,56 @@ const Products: React.FC = () => {
             <ProductCard key={p.id} product={p} />
           ))}
         </div>
-        <div className="mt-8 flex items-center justify-between">
-          <div className="text-sm text-gray-600">
+        <div className="mt-10 mb-12 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-xs sm:text-sm text-gray-500">
             Showing {totalItems === 0 ? 0 : start + 1}-
             {Math.min(end, totalItems)} of {totalItems}
           </div>
           <div className="flex items-center gap-2">
             <button
-              className="px-3 py-2 border rounded disabled:opacity-50"
+              aria-label="First page"
+              className="h-9 px-3 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white shadow-sm"
               onClick={() => setPage(1)}
               disabled={currentPage === 1}
             >
-              « First
+              «
             </button>
             <button
-              className="px-3 py-2 border rounded disabled:opacity-50"
+              aria-label="Previous page"
+              className="h-9 px-3 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white shadow-sm"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
             >
-              ‹ Prev
+              ‹
             </button>
-            <span className="px-2 text-sm">
-              Page {currentPage} of {totalPages}
+            <span className="mx-2 text-sm text-gray-700">
+              {currentPage} / {totalPages}
             </span>
             <button
-              className="px-3 py-2 border rounded disabled:opacity-50"
+              aria-label="Next page"
+              className="h-9 px-3 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white shadow-sm"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
             >
-              Next ›
+              ›
             </button>
             <button
-              className="px-3 py-2 border rounded disabled:opacity-50"
+              aria-label="Last page"
+              className="h-9 px-3 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white shadow-sm"
               onClick={() => setPage(totalPages)}
               disabled={currentPage === totalPages}
             >
-              Last »
+              »
             </button>
             <select
-              className="ml-3 border rounded px-2 py-2 text-sm"
+              aria-label="Items per page"
+              className="ml-2 h-9 rounded-lg border border-gray-200 bg-white px-2 text-sm text-gray-700 hover:bg-gray-50 shadow-sm"
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value))}
             >
               {[8, 12, 16, 20, 24].map((n) => (
                 <option key={n} value={n}>
-                  {n} / page
+                  {n}/page
                 </option>
               ))}
             </select>
