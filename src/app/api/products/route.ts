@@ -5,6 +5,9 @@ import { Sneaker } from "@/types";
 // Масив усіх кросівок з якого будуть братися дані
 const sneakersArray = Object.values(data) as Sneaker[];
 
+// Cloudflare Pages requires Edge Runtime
+export const runtime = 'edge';
+
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const page = Math.max(1, Number(searchParams.get("page") || 1));
