@@ -2,9 +2,8 @@ import Banner from "@/components/Banner";
 import Category from "@/components/Category";
 import Header from "@/components/Header";
 import Products from "@/components/Products";
-import Image from "next/image";
 
-export default function Home() {
+export default async function Home() {
   return (
     <div className="max-w-[1200px] mx-auto px-4 ">
       <Header />

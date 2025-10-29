@@ -22,11 +22,9 @@ const Products: React.FC = () => {
 
   const sizes = useMemo(() => allSizes, [allSizes]);
 
-  // Pagination
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(12);
 
-  // Fetch products from backend with filters + pagination
   useEffect(() => {
     const controller = new AbortController();
     async function run() {
@@ -59,7 +57,6 @@ const Products: React.FC = () => {
     return () => controller.abort();
   }, [selectedBrands, selectedCategories, selectedSizes, page, pageSize]);
 
-  // Initial fetch to build filter options (brands/categories/sizes)
   useEffect(() => {
     const controller = new AbortController();
     async function run() {
@@ -94,7 +91,6 @@ const Products: React.FC = () => {
     return () => controller.abort();
   }, []);
 
-  // Reset page when filters change
   React.useEffect(() => {
     setPage(1);
   }, [selectedBrands, selectedCategories, selectedSizes]);
@@ -103,8 +99,7 @@ const Products: React.FC = () => {
   const currentPage = Math.min(page, totalPages);
   const start = (currentPage - 1) * pageSize;
   const end = start + pageSize;
-  const paginated = products; // API already returns the correct slice
-
+  const paginated = products.slice(start, end);
   return (
     <div className="mt-8 lg:flex lg:items-start lg:gap-8">
       <aside className="mb-6 lg:mb-0 lg:w-64 lg:shrink-0">

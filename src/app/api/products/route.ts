@@ -1,42 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/db";
-import SneakerModel from "@/models/Sneaker";
+import data from "@/app/data";
+import { Sneaker } from "@/types";
+
+// Масив усіх кросівок з якого будуть братися дані
+const sneakersArray = Object.values(data) as Sneaker[];
 
 export async function GET(req: NextRequest) {
-    try {
-        await connectToDatabase();
+    const { searchParams } = new URL(req.url);
+    const page = Math.max(1, Number(searchParams.get("page") || 1));
+    const pageSize = Math.max(1, Math.min(50, Number(searchParams.get("pageSize") || 12)));
+    const brands = (searchParams.get("brands") || "").split(",").filter(Boolean);
+    const categories = (searchParams.get("categories") || "").split(",").filter(Boolean);
+    const sizes = (searchParams.get("sizes") || "").split(",").filter(Boolean);
 
-        const { searchParams } = new URL(req.url);
-        const page = Math.max(1, Number(searchParams.get("page") || 1));
-        const pageSize = Math.max(1, Math.min(50, Number(searchParams.get("pageSize") || 12)));
-        const brands = (searchParams.get("brands") || "").split(",").filter(Boolean);
-        const categories = (searchParams.get("categories") || "").split(",").filter(Boolean);
-        const sizes = (searchParams.get("sizes") || "").split(",").filter(Boolean);
+    let filtered = [...sneakersArray];
 
-        const match: any = {};
-        if (brands.length) match.brand = { $in: brands };
-        if (categories.length) match.category = { $in: categories };
-        if (sizes.length) match.sizes = { $in: sizes }; // any size matches
-
-        const [items, total] = await Promise.all([
-            SneakerModel.find(match)
-                .sort({ id: 1 })
-                .skip((page - 1) * pageSize)
-                .limit(pageSize),
-            SneakerModel.countDocuments(match),
-        ]);
-
-        return NextResponse.json({
-            items,
-            page,
-            pageSize,
-            total,
-            totalPages: Math.max(1, Math.ceil(total / pageSize)),
-        });
-    } catch (err: any) {
-        console.error(err);
-        return NextResponse.json({ error: err.message || "Server error" }, { status: 500 });
+    if (brands.length) {
+        filtered = filtered.filter((sneaker: Sneaker) => brands.includes(sneaker.brand));
     }
+    if (categories.length) {
+        filtered = filtered.filter((sneaker: Sneaker) => categories.includes(sneaker.category));
+    }
+    if (sizes.length) {
+        filtered = filtered.filter((sneaker: Sneaker) =>
+            sneaker.sizes && sizes.some(size => sneaker.sizes?.includes(size))
+        );
+    }
+
+    const total = filtered.length;
+    filtered.sort((a: Sneaker, b: Sneaker) => a.id - b.id);
+    const items = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+    return NextResponse.json({
+        items,
+        page,
+        pageSize,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    });
 }
 
 

@@ -1,4 +1,4 @@
-export default {
+const data = {
   "nike-react-infinity-run-flyknit": {
     id: 1,
     name: "Nike React Infinity Run Flyknit",
@@ -427,3 +427,5 @@ export default {
     slug: "michael-feburary-sk8-hi",
   },
 };
+
+export default data;
